@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 本地凭证
+.env
+
+# 运行数据（线索库/反馈/追踪/评测报告）
+data/leads.jsonl
+data/feedback.jsonl
+data/traces/
+data/eval_report.json
+data/transcripts/
+
+# 上传的通话录音（体积大且含个人信息）
+data/audio/
