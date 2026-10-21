@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI SDR Agent · 通话线索工作台</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --border:#e4e8ee; --text:#1c2128; --muted:#8a929c;
+    --primary:#2b6cff; --primary-weak:#edf2ff; --ok:#0f9d58; --warn:#d98200; --danger:#d93025;
+    --high:#0f9d58; --medium:#d98200; --low:#8a929c; --radius:12px;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  button{font:inherit;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);
+         padding:7px 14px;border-radius:8px;transition:.15s}
+  button:hover{border-color:#c9d0d9;background:#fafbfc}
+  button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  button.primary:hover{background:#1f5be0}
+  button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  button.ghost:hover{background:#eceff3;color:var(--text)}
+  button.sm{padding:3px 9px;font-size:12px;border-radius:6px}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
+                         border-radius:8px;padding:8px 11px;width:100%}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);
+          box-shadow:0 0 0 3px rgba(43,108,255,.12)}
+
+  header{background:#fff;border-bottom:1px solid var(--border);padding:10px 22px;
+         display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:sticky;top:0;z-index:30}
+  .brand{font-weight:650;font-size:15px;display:flex;align-items:center;gap:9px;letter-spacing:.2px}
+  .brand i{width:9px;height:9px;border-radius:50%;background:var(--primary);
+           box-shadow:0 0 0 4px var(--primary-weak)}
+  .nav{display:flex;gap:2px;background:#f1f3f6;border-radius:9px;padding:3px}
+  .navbtn{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-size:13px;color:#5c6672}
+  .navbtn:hover{background:transparent;color:var(--text)}
+  .navbtn.active{background:#fff;color:var(--primary);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .chip{background:#f3f5f8;border-radius:999px;padding:3px 11px;font-size:12px;color:#4b5563;
+        display:flex;gap:5px;align-items:center}
+  .chip b{color:var(--text);font-weight:650}
+
+  main{padding:18px 22px 40px;max-width:1680px;margin:0 auto}
+  .view{display:none}
+  .view.active{display:block}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+  /* ---------- 工作台 ---------- */
+  .wb{display:grid;grid-template-columns:410px 1fr;gap:18px;align-items:start}
+  .card{padding:18px}
+  .card h2{margin:0 0 4px;font-size:16px;font-weight:650}
+  .card .sub{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+  .seg{display:flex;background:#f1f3f6;border-radius:9px;padding:3px;margin-bottom:16px}
+  .seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 0;font-size:13px;color:#5c6672}
+  .seg button.active{background:#fff;color:var(--primary);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+  .mode{display:none}
+  .mode.active{display:block}
+  .dropzone{border:1.5px dashed #c8d1dd;border-radius:11px;padding:26px 18px;text-align:center;
+            cursor:pointer;transition:.16s;background:#fbfcfe}
+  .dropzone:hover,.dropzone.drag{border-color:var(--primary);background:var(--primary-weak)}
+  .dropzone svg{width:30px;height:30px;stroke:var(--primary);fill:none;stroke-width:1.7;margin-bottom:6px}
+  .dropzone .t{font-size:13.5px;font-weight:550}
+  .dropzone .t span{color:var(--primary)}
+  .dropzone .h{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .filechip{display:none;align-items:center;gap:9px;margin-top:10px;padding:9px 11px;
+            border:1px solid var(--border);border-radius:9px;background:#fbfcfd;font-size:12.5px}
+  .filechip.show{display:flex}
+  .filechip b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .filechip .sz{color:var(--muted);white-space:nowrap}
+  .filechip button{margin-left:auto;padding:1px 7px;font-size:12px}
+  textarea#wb-text{height:180px;resize:vertical;line-height:1.7}
+  .wbrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-top:10px}
+  .wbrow label{font-size:12px;color:var(--muted)}
+  .analyze{width:100%;margin-top:16px;padding:11px 14px;font-size:14px;font-weight:600;border-radius:9px}
+  .tip{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+  .recent{margin-top:18px;padding:14px 16px}
+  .recent h3{margin:0 0 8px;font-size:12.5px;color:#5c6672;font-weight:600}
+  .recent .r{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f1f3f6;
+             font-size:12.5px;cursor:pointer}
+  .recent .r:hover{color:var(--primary)}
+  .recent .r .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---------- 结果 ---------- */
+  .result{min-height:420px}
+  .result-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+                min-height:420px;color:var(--muted);gap:8px;text-align:center;padding:30px}
+  .result-empty svg{width:54px;height:54px;stroke:#c3cbd6;fill:none;stroke-width:1.2}
+  .result-empty b{color:#5c6672;font-weight:600;font-size:14px}
+  .result-empty span{font-size:12.5px;max-width:320px;line-height:1.7}
+
+  .steps{display:flex;align-items:center;gap:6px;margin:18px 0 6px;flex-wrap:wrap}
+  .step{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#9aa2ad;padding:5px 8px;border-radius:7px}
+  .step .d{width:18px;height:18px;border-radius:50%;border:1.5px solid #d5dbe3;display:flex;
+           align-items:center;justify-content:center;font-size:10.5px;color:#9aa2ad}
+  .step.active{background:var(--primary-weak);color:var(--primary);font-weight:600}
+  .step.active .d{border-color:var(--primary);color:var(--primary);animation:pulse 1.4s infinite}
+  .step.done{color:var(--ok)}
+  .step.done .d{border-color:var(--ok);background:var(--ok);color:#fff}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(43,108,255,.35)}50%{box-shadow:0 0 0 5px rgba(43,108,255,0)}}
+  .elapsed{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+
+  .hero{display:flex;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .hero h1{margin:0;font-size:20px;font-weight:650;line-height:1.35}
+  .hero .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:12.5px;color:#5c6672;align-items:center}
+  .ring{--p:0deg;width:86px;height:86px;border-radius:50%;flex:0 0 auto;
+        background:conic-gradient(var(--ringc,#2b6cff) var(--p),#edf0f4 0);
+        display:flex;align-items:center;justify-content:center;margin-left:auto}
+  .ring i{width:68px;height:68px;border-radius:50%;background:#fff;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;font-style:normal}
+  .ring b{font-size:19px;font-weight:650;line-height:1}
+  .ring span{font-size:10px;color:var(--muted);margin-top:3px}
+  .badge{font-size:11.5px;padding:2px 8px;border-radius:5px;font-weight:600;white-space:nowrap}
+  .badge.high{background:#e7f7ee;color:var(--high)}
+  .badge.medium{background:#fdf2e3;color:var(--medium)}
+  .badge.low{background:#eef0f3;color:var(--low)}
+  .badge.review{background:#fdecea;color:var(--danger)}
+  .badge.ok{background:#e7f7ee;color:var(--ok)}
+  .alert{margin-top:14px;padding:11px 13px;border-radius:9px;font-size:12.5px;line-height:1.7}
+  .alert.warn{background:#fff8ec;border:1px solid #f3dfbd;color:#8a5a00}
+  .alert.err{background:#fdecea;border:1px solid #f5c6c2;color:#a3271f}
+  .alert b{display:block;margin-bottom:4px}
+  .alert ul{margin:0;padding-left:17px}
+  .alert li{margin:2px 0}
+  .stats6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+  .cell{border:1px solid var(--border);border-radius:9px;padding:10px 12px;background:#fbfcfd}
+  .cell .k{font-size:11.5px;color:var(--muted)}
+  .cell .v{font-size:14px;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .block{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .block h3{margin:0 0 7px;font-size:12.5px;color:#5c6672;font-weight:600}
+  .block p{margin:0;font-size:13px;line-height:1.75}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+  details.json{margin-top:16px;border:1px solid var(--border);border-radius:9px;background:#fbfcfd}
+  details.json summary{cursor:pointer;padding:9px 12px;font-size:12.5px;color:#5c6672;user-select:none}
+  details.json pre{margin:0;padding:0 12px 12px;font-family:var(--mono);font-size:11.5px;
+                   line-height:1.65;overflow:auto;max-height:320px;color:#3b4450}
+
+  /* ---------- 线索库 ---------- */
+  .lib{display:grid;grid-template-columns:minmax(320px,390px) 1fr;gap:18px;align-items:start}
+  .toolbar{padding:13px;display:flex;flex-direction:column;gap:10px}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .filters input[type=text]{grid-column:1/-1}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:#4b5563}
+  .toggle input{width:auto}
+  .batch{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 13px;
+         border-top:1px solid var(--border);background:#fbfcfd;border-radius:0 0 var(--radius) var(--radius)}
+  .list{max-height:calc(100vh - 250px);overflow:auto}
+  .item{padding:11px 13px 11px 28px;border-bottom:1px solid #f1f3f6;cursor:pointer;position:relative}
+  .item:hover{background:#fafbfd}
+  .item.active{background:var(--primary-weak);box-shadow:inset 3px 0 0 var(--primary)}
+  .item .row1{display:flex;align-items:center;gap:8px}
+  .item .co{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .meta{font-size:12px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .item .reason{font-size:12px;color:var(--warn);margin-top:4px;overflow:hidden;
+                text-overflow:ellipsis;white-space:nowrap}
+  .cb{position:absolute;left:4px;top:50%;transform:translateY(-50%)}
+  .bar{height:4px;border-radius:2px;background:#edf0f4;overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;background:var(--primary)}
+  .detail{padding:0;overflow:hidden}
+  .detail .head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;
+                gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .detail .head h2{margin:0;font-size:16px}
+  .detail .actions{margin-left:auto;display:flex;gap:8px}
+  .tabs{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--border);background:#fbfcfd;
+        overflow-x:auto}
+  .tab{padding:10px 13px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;
+       user-select:none;white-space:nowrap}
+  .tab.active{color:var(--primary);border-color:var(--primary);font-weight:600}
+  .tabbody{padding:16px 18px;max-height:calc(100vh - 300px);overflow:auto}
+  .grid{display:grid;grid-template-columns:150px 1fr;gap:10px 14px;align-items:start}
+  .lbl{font-size:12.5px;color:var(--muted);padding-top:9px;display:flex;gap:6px;align-items:center}
+  .conf{width:34px;height:4px;border-radius:2px;background:#edf0f4;overflow:hidden;flex:0 0 auto}
+  .conf i{display:block;height:100%}
+  .field-ev{font-size:11.5px;color:#9aa2ad;margin:4px 0 0;line-height:1.5}
+  .section{margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+  .section h3{margin:0 0 10px;font-size:13px;color:#4b5563;font-weight:600}
+  .dlg{background:#fbfcfd;border:1px solid var(--border);border-radius:9px;padding:12px;font-size:13px;
+       max-height:340px;overflow:auto}
+  .dlg div{padding:2px 0}
+  .dlg .sales{color:#5b6472}
+  .dlg .cust{color:#1f2328;font-weight:500}
+  .dlg .sp{color:var(--muted);margin-right:4px}
+  .cands{display:flex;flex-direction:column;gap:6px}
+  .cand{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);
+        border-radius:8px;background:#fff;font-size:13px}
+  .cand .nm{flex:1;font-family:var(--mono);font-size:12.5px}
+  .cand .meta{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  ul.reasons{margin:0;padding-left:18px;font-size:13px}
+  ul.reasons li{margin:3px 0}
+  .kv{font-size:12.5px;color:#4b5563;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .pill{background:#f2f4f7;border-radius:5px;padding:1px 7px;font-family:var(--mono);font-size:11.5px}
+  .dim{display:grid;grid-template-columns:88px 1fr 62px;align-items:center;gap:9px;font-size:12.5px;
+       margin-bottom:7px}
+  .dim .bar{margin:0}
+  .empty{color:var(--muted);text-align:center;padding:60px 20px;font-size:13px}
+  .evlist{font-size:12px;color:#5b6472;background:#fbfcfd;border:1px solid var(--border);
+          border-radius:8px;padding:9px 11px;white-space:pre-wrap;line-height:1.7;font-family:var(--mono)}
+
+  /* ---------- 设置 ---------- */
+  .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+  .setcard{padding:18px}
+  .setcard h2{margin:0 0 12px;font-size:14.5px;font-weight:650}
+  .kvrow{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #f1f3f6;
+         font-size:12.5px}
+  .kvrow:last-child{border-bottom:0}
+  .kvrow span:first-child{color:var(--muted)}
+  .kvrow span:last-child{font-family:var(--mono);font-size:12px;text-align:right;word-break:break-all}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{border:1px solid var(--border);border-radius:9px;padding:12px;background:#fbfcfd}
+  .stat .k{font-size:11.5px;color:var(--muted)}
+  .stat .v{font-size:20px;font-weight:650;margin-top:2px}
+  .kbtable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .kbtable th,.kbtable td{text-align:left;padding:7px 6px;border-bottom:1px solid #f1f3f6}
+  .kbtable th{color:var(--muted);font-weight:500;font-size:11.5px}
+
+  #toast{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:99}
+  #toast div{background:#22272e;color:#fff;padding:9px 15px;border-radius:9px;font-size:13px;
+             box-shadow:0 8px 24px rgba(0,0,0,.2);animation:in .18s ease}
+  #toast div.err{background:var(--danger)}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+
+  @media(max-width:1180px){
+    .wb{grid-template-columns:1fr}
+    .lib{grid-template-columns:1fr}
+    .list{max-height:none}
+    .tabbody{max-height:none}
+  }
+  @media(max-width:720px){
+    header{padding:10px 14px;gap:10px}
+    .chips{display:none}
+    main{padding:14px}
+    .stats6{grid-template-columns:1fr 1fr}
+    .grid{grid-template-columns:110px 1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><i></i>AI SDR Agent</div>
+  <nav class="nav">
+    <button class="navbtn active" data-view="workbench" onclick="switchView('workbench')">工作台</button>
+    <button class="navbtn" data-view="library" onclick="switchView('library')">线索库</button>
+    <button class="navbtn" data-view="settings" onclick="switchView('settings')">设置</button>
+  </nav>
+  <div class="chips" id="stats"></div>
+</header>
+
+<main>
+  <!-- ==================== 工作台 ==================== -->
+  <section class="view active" id="view-workbench">
+    <div class="wb">
+      <div>
+        <div class="panel card">
+          <h2>新建线索分析</h2>
+          <div class="sub">上传通话录音或粘贴转写文本，自动输出 SQL 字段</div>
+
+          <div class="seg">
+            <button data-mode="audio" class="active" onclick="setMode('audio')">录音文件</button>
+            <button data-mode="text" onclick="setMode('text')">转写文本</button>
+          </div>
+
+          <div class="mode active" id="mode-audio">
+            <div class="dropzone" id="dropzone">
+              <svg viewBox="0 0 24 24"><path d="M12 16V4M12 4l-4 4M12 4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+              <div class="t">拖拽录音到这里，或 <span>点击选择文件</span></div>
+              <div class="h">支持 mp3 / wav / m4a / aac / flac / ogg / opus / wma，单文件 ≤ 1GB</div>
+            </div>
+            <input type="file" id="audio-file" style="display:none"
+                   accept=".mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma" />
+            <div class="filechip" id="filechip">
+              <span id="file-name"></span>
+              <span class="sz" id="file-size"></span>
+              <button class="ghost sm" onclick="clearFile()">移除</button>
+            </div>
+            <div class="tip">转写会自动做说话人分离，区分销售与客户话轮。音频会上传至云端临时存储，48 小时后自动清理。</div>
+          </div>
+
+          <div class="mode" id="mode-text">
+            <textarea id="wb-text" placeholder="粘贴通话转写文本，建议保留「说话人：内容」的换行格式&#10;&#10;销售：您好，请问是张总吗？&#10;客户：是的，你讲。"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px">
+              <button class="ghost sm" onclick="fillSample()">填入示例</button>
+            </div>
+          </div>
+
+          <div class="wbrow">
+            <label for="wb-calltime">通话时间（可选）</label>
+            <input id="wb-calltime" type="datetime-local" style="width:210px" />
+          </div>
+
+          <button class="primary analyze" id="btn-analyze" onclick="startAnalyze()">开始分析</button>
+          <div class="tip">一次分析通常需要 3–30 秒；录音另需转写时间，取决于音频长度。</div>
+        </div>
+
+        <div class="panel recent">
+          <h3>最近分析</h3>
+          <div id="recent-list"><div class="empty" style="padding:18px 0">暂无记录</div></div>
+        </div>
+      </div>
+
+      <div class="panel card result" id="result-panel">
+        <div class="result-empty">
+          <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+          <b>分析结果会显示在这里</b>
+          <span>上传录音或粘贴文本后点击「开始分析」。系统会还原企业抬头、判断意向等级，并标出需要人工确认的地方。</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 线索库 ==================== -->
+  <section class="view" id="view-library">
+    <div class="lib">
+      <div class="panel">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="f-status" title="复核状态">
+              <option value="all">全部状态</option>
+              <option value="pending">待复核</option>
+              <option value="approved">已通过</option>
+              <option value="corrected">已修正</option>
+              <option value="rejected">已驳回</option>
+              <option value="auto_passed">自动通过</option>
+            </select>
+            <select id="f-level" title="意向等级">
+              <option value="all">全部意向</option>
+              <option value="high">高意向</option>
+              <option value="medium">中意向</option>
+              <option value="low">低意向</option>
+            </select>
+            <input id="f-query" type="text" placeholder="搜索企业抬头 / 通话内容" />
+          </div>
+          <label class="toggle"><input type="checkbox" id="f-review" /> 仅看需要人工复核</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="ghost sm" id="btn-refresh">刷新</button>
+            <button class="ghost sm" onclick="switchView('workbench')">新建分析</button>
+            <button class="ghost sm" id="btn-export">导出已审核线索</button>
+          </div>
+        </div>
+        <div class="batch">
+          <label class="toggle"><input type="checkbox" id="sel-all" /> 全选</label>
+          <span id="sel-count" style="font-size:12px;color:var(--muted)">已选 0 条</span>
+          <button class="sm" id="btn-batch-approve" disabled>批量通过</button>
+          <select id="batch-level" style="width:auto;padding:3px 8px;font-size:12px" disabled>
+            <option value="">批量改意向…</option>
+            <option value="high">设为高意向</option>
+            <option value="medium">设为中意向</option>
+            <option value="low">设为低意向</option>
+          </select>
+        </div>
+        <div class="list" id="list"><div class="empty">加载中…</div></div>
+      </div>
+
+      <div class="panel detail" id="detail">
+        <div class="empty">从左侧选择一条线索开始复核</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 设置 ==================== -->
+  <section class="view" id="view-settings">
+    <div class="settings">
+      <div class="panel setcard">
+        <h2>系统配置</h2>
+        <div id="set-config"><div class="empty" style="padding:20px 0">加载中…</div></div>
+      </div>
+      <div class="panel setcard">
+        <h2>线索概览</h2>
+        <div class="statgrid" id="set-stats"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="sm" onclick="doExport()">导出已审核线索</button>
+          <button class="ghost sm" onclick="loadSettings()">刷新</button>
+        </div>
+      </div>
+      <div class="panel setcard" style="grid-column:1/-1">
+        <h2>人工订正沉淀的企业别名</h2>
+        <div class="sub" style="margin:-6px 0 10px">审核人每改一次企业抬头，系统就记住一条「口述别称 → 工商全称」，下次同类表述可直接命中。</div>
+        <div id="kb-list"><div class="empty" style="padding:20px 0">暂无沉淀</div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ==================== 常量与工具 ==================== */
+const FIELD_LABELS = {
+  company_name:"企业抬头", industry:"行业", area:"地区", contact_name:"联系人",
+  contact_title:"职位", phone:"手机号", intent_level:"意向等级", intent_reason:"判断依据",
+  demand_summary:"客户需求", mendian:"门店数", shejishi:"设计师人数", call_time:"通话时间",
+  next_action:"建议下一步", confidence_score:"置信度", need_human_review:"需人工复核"
+};
+const EDITABLE = ["company_name","industry","area","contact_name","contact_title","phone",
+                  "intent_level","demand_summary","mendian","shejishi","call_time","next_action"];
+const STATUS_LABEL = {pending:"待复核",approved:"已通过",corrected:"已修正",rejected:"已驳回",auto_passed:"自动通过"};
+const INTENT_LABEL = {high:"高",medium:"中",low:"低"};
+
+const state = {
+  view:"workbench", mode:"audio", file:null, analyzing:false, result:null,
+  config:null, stats:null, items:[], selected:new Set(), current:null, tab:"fields",
+  jobStages:null, elapsedTimer:null, elapsed:0
+};
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const esc = (s) => String(s==null?"":s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pct = (v) => Math.round((v||0)*100);
+function confColor(v){ return v>=0.75?"var(--ok)":(v>=0.55?"var(--warn)":"var(--danger)"); }
+
+function toast(msg, isErr){
+  const d=document.createElement("div"); d.className=isErr?"err":""; d.textContent=msg;
+  $("#toast").appendChild(d); setTimeout(()=>d.remove(), 3000);
+}
+async function api(path, opts){
+  const r = await fetch(path, Object.assign({headers:{"Content-Type":"application/json"}}, opts||{}));
+  if(!r.ok){ let m = r.statusText; try{ m = (await r.json()).detail || m; }catch(e){} throw new Error(m); }
+  return r.json();
+}
+
+/* ==================== 视图切换 ==================== */
+function switchView(v){
+  state.view = v;
+  $$(".navbtn").forEach(b=>b.classList.toggle("active", b.dataset.view === v));
+  $$(".view").forEach(s=>s.classList.toggle("active", s.id === "view-" + v));
+  if(v === "library"){ loadList().catch(e=>toast(e.message,true)); }
+  if(v === "settings"){ loadSettings().catch(e=>toast(e.message,true)); }
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* ==================== 顶部统计 ==================== */
+function renderStats(){
+  const s = state.stats || {total:0,pending_review:0,avg_confidence:0,by_intent_level:{}};
+  const lv = s.by_intent_level || {};
+  $("#stats").innerHTML = `
+    <div class="chip">总线索 <b>${s.total||0}</b></div>
+    <div class="chip">待复核 <b style="color:var(--danger)">${s.pending_review||0}</b></div>
+    <div class="chip">高意向 <b>${lv.high||0}</b></div>
+    <div class="chip">平均置信度 <b>${pct(s.avg_confidence)}%</b></div>`;
+}
+
+/* ==================== 工作台 ==================== */
+function setMode(mode){
+  state.mode = mode;
+  $$(".seg button").forEach(b=>b.classList.toggle("active", b.dataset.mode === mode));
+  $("#mode-audio").classList.toggle("active", mode === "audio");
+  $("#mode-text").classList.toggle("active", mode === "text");
+}
+
+function clearFile(){
+  state.file = null;
+  $("#filechip").classList.remove("show");
+  $("#audio-file").value = "";
+}
+
+function setFile(file){
+  if(!file) return;
+  const ext = ("." + (file.name.split(".").pop() || "")).toLowerCase();
+  const allowed = [".mp3",".wav",".m4a",".aac",".flac",".ogg",".opus",".wma"];
+  if(!allowed.includes(ext)){ toast("不支持的音频格式：" + ext, true); return; }
+  if(file.size > 1024*1024*1024){ toast("文件超过 1GB", true); return; }
+  state.file = file;
+  $("#file-name").textContent = file.name;
+  $("#file-size").textContent = (file.size/1024/1024).toFixed(2) + " MB";
+  $("#filechip").classList.add("show");
+}
+
+function fillSample(){
+  $("#wb-text").value =
+`销售：您好，请问是张总吗？我是酷家乐的小王。
+客户：是的，你讲。
+销售：上次您在我们官网留了信息，想了解企业版设计软件，今天想跟您确认一下需求。
+客户：对，我们这边是杭州那边一个做全屋定制的，叫“木里木外”，不知道你们听过没有。
+销售：了解的，木里木外是高定品牌。那您这边大概多少人用？主要想解决什么问题？
+客户：设计部大概 15 个人，现在用的是别的软件，出图慢，而且跟工厂对接经常出错。
+销售：明白，那我们企业版可以支持参数化设计，一键出图，还能对接生产。您大概什么时候想上线？
+客户：最好下个月就能试一下，预算的话，一年几万块我们能接受。
+销售：好的张总，我加您微信，把方案发您。
+客户：行，你加这个手机号就行，138xxxx1234。`;
+}
+
+/* 阶段文案与后端 app/api/jobs.py 的 STAGE_LABELS 保持一致 */
+function stepsForMode(){ return state.mode === "audio"
+  ? ["语音转写","意图识别与信息抽取","企业抬头还原","意向评分","结构化输出"]
+  : ["意图识别与信息抽取","企业抬头还原","意向评分","结构化输出"]; }
+
+function defaultStages(){
+  return stepsForMode().map((label,i)=>({label, status:i===0?"active":"pending"}));
+}
+
+function renderProgress(){
+  const stages = state.jobStages || defaultStages();
+  const list = stages.map((s,i)=>{
+    const cls = s.status==="done" ? "done" : (s.status==="active" ? "active" : "");
+    const mark = s.status==="done" ? "✓" : String(i+1);
+    return `<div class="step ${cls}"><span class="d">${mark}</span>${esc(s.label)}</div>`;
+  }).join("");
+  if(state.result === "error"){
+    $("#result-panel").innerHTML = `<div class="card">
+      <div class="alert err"><b>分析失败</b><span id="analyze-error"></span></div>
+      <div class="actions"><button onclick="resetResult()">重新填写</button></div></div>`;
+    return;
+  }
+  $("#result-panel").innerHTML = `<div class="card">
+    <div class="steps">${list}</div>
+    <div class="elapsed" id="elapsed">已用时 ${state.elapsed}s</div>
+    <div class="block" style="border-top:0;padding-top:8px">
+      <p style="color:var(--muted);font-size:12.5px">正在处理，请勿关闭页面。阶段进度来自后台任务，关闭页面不会中断分析，可稍后在线索库查看结果。</p>
+    </div></div>`;
+}
+
+function beginProgress(){
+  state.jobStages = defaultStages();
+  state.elapsed = 0;
+  renderProgress();
+  clearInterval(state.elapsedTimer);
+  state.elapsedTimer = setInterval(()=>{
+    state.elapsed += 1;
+    const el = $("#elapsed");
+    if(el) el.textContent = `已用时 ${state.elapsed}s`;
+  }, 1000);
+}
+
+function stopProgress(){
+  clearInterval(state.elapsedTimer);
+  state.elapsedTimer = null;
+}
+
+const sleep = (ms)=>new Promise(r=>setTimeout(r, ms));
+
+async function fetchJob(jobId){
+  const r = await fetch("/api/jobs/" + encodeURIComponent(jobId));
+  if(r.status === 404) throw new Error("任务不存在或已过期");
+  if(!r.ok){
+    let m = r.statusText;
+    try{ m = (await r.json()).detail || m; }catch(e){}
+    const err = new Error(m); err.status = r.status; throw err;
+  }
+  return r.json();
+}
+
+/* 轮询后台任务：拿到真实阶段，终态返回 result 或抛出错误。
+   404/4xx 直接失败；网络抖动、浏览器休眠恢复与 5xx 退避重试。 */
+async function pollJob(jobId, opts){
+  const silent = !!(opts && opts.silent);
+  const deadline = Date.now() + 20*60*1000;
+  let delay = 1000;
+  while(Date.now() < deadline){
+    let snap;
+    try{
+      snap = await fetchJob(jobId);
+    }catch(err){
+      if(err.status === 404 || /任务不存在|已过期/.test(err.message)) throw err;
+      if(err.status && err.status < 500) throw err;
+      await sleep(delay);
+      delay = Math.min(Math.round(delay*1.5), 5000);
+      continue;
+    }
+    delay = 1000;
+    if(!silent && snap.stages){ state.jobStages = snap.stages; renderProgress(); }
+    if(snap.status === "succeeded") return snap.result;
+    if(snap.status === "failed") throw new Error(snap.error || "分析失败");
+    await sleep(1000);
+  }
+  throw new Error("等待超时（20 分钟）。任务可能仍在后台运行，请稍后到线索库确认");
+}
+
+function resetResult(){
+  state.result = null;
+  state.jobStages = null;
+  $("#result-panel").innerHTML = `<div class="result-empty">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+    <b>分析结果会显示在这里</b>
+    <span>上传录音或粘贴文本后点击「开始分析」。系统会还原企业抬头、判断意向等级，并标出需要人工确认的地方。</span>
+  </div>`;
+}
+
+async function startAnalyze(){
+  if(state.analyzing) return;
+  const callTimeEl = $("#wb-calltime");
+  let callTime = callTimeEl.value ? callTimeEl.value.replace("T"," ") + ":00" : null;
+  const callId = "web-" + Date.now();
+
+  if(state.mode === "audio" && !state.file){ toast("请先选择录音文件", true); return; }
+  const text = $("#wb-text").value.trim();
+  if(state.mode === "text" && !text){ toast("请先粘贴通话文本", true); return; }
+
+  state.analyzing = true;
+  const btn = $("#btn-analyze");
+  btn.disabled = true; btn.textContent = "分析中…";
+  beginProgress();
+
+  try{
+    let accepted;
+    if(state.mode === "audio"){
+      const fd = new FormData();
+      fd.append("file", state.file);
+      fd.append("call_id", callId);
+      if(callTime) fd.append("call_time", callTime);
+      fd.append("save", "true");
+      const resp = await fetch("/api/analyze-audio", {method:"POST", body:fd});
+      if(!resp.ok){
+        let msg = resp.statusText;
+        try{ msg = (await resp.json()).detail || msg; }catch(e){}
+        throw new Error(msg);
+      }
+      accepted = await resp.json();
+    } else {
+      accepted = await api("/api/analyze", {method:"POST", body:JSON.stringify({
+        dialogue: text, call_id: callId, call_time: callTime, save: true
+      })});
+    }
+    if(!accepted.job_id) throw new Error("服务端未返回任务 ID");
+    // 长任务在后台跑：轮询真实阶段，完成后取结果
+    const payload = await pollJob(accepted.job_id);
+    stopProgress();
+    if(!payload) throw new Error("任务完成但未返回结果");
+    payload.id = payload.id || callId;
+    state.jobStages = null;
+    state.result = payload;
+    renderResult(payload);
+    toast("分析完成，已写入线索库");
+    await Promise.all([loadStats(), loadRecent()]);
+  }catch(err){
+    stopProgress();
+    state.result = "error";
+    renderProgress();
+    const el = $("#analyze-error");
+    if(el) el.textContent = err.message;
+    toast("分析失败：" + err.message, true);
+  }finally{
+    state.analyzing = false;
+    btn.disabled = false; btn.textContent = "开始分析";
+  }
+}
+
+function renderResult(payload){
+  const lead = payload.lead || {};
+  const meta = payload.meta || {};
+  const asr = meta.asr || null;
+  const reasons = meta.review_reasons || [];
+  const conf = lead.confidence_score || 0;
+  const color = confColor(conf);
+  const p = pct(conf) * 3.6;
+  const asrLine = asr
+    ? `<span>${asr.speaker_count || 0} 位说话人</span><span>·</span><span>时长 ${((asr.duration_ms||0)/1000).toFixed(1)}s</span>`
+    : `<span>文本输入</span>`;
+
+  const cell = (k, v) => `<div class="cell"><div class="k">${esc(k)}</div><div class="v">${esc(v==null||v===""?"—":v)}</div></div>`;
+  const intentCls = lead.intent_level || "low";
+  const reviewBadge = lead.need_human_review
+    ? '<span class="badge review">需人工复核</span>'
+    : '<span class="badge ok">可直接入库</span>';
+
+  $("#result-panel").innerHTML = `<div class="card">
+    <div class="hero">
+      <div style="min-width:0">
+        <h1>${esc(lead.company_name || "未识别")}</h1>
+        <div class="meta">
+          <span class="badge ${intentCls}">${INTENT_LABEL[intentCls]||"-"}意向</span>
+          ${reviewBadge}
+          ${asrLine}
+        </div>
+      </div>
+      <div class="ring" style="--p:${p}deg;--ringc:${color}">
+        <i><b>${pct(conf)}%</b><span>置信度</span></i>
+      </div>
+    </div>
+
+    ${reasons.length ? `<div class="alert warn"><b>需要人工确认 ${reasons.length} 项</b>
+      <ul>${reasons.slice(0,6).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>` : ""}
+
+    <div class="stats6">
+      ${cell("行业", lead.industry)}
+      ${cell("地区", lead.area)}
+      ${cell("联系人", [lead.contact_name, lead.contact_title].filter(Boolean).join(" / "))}
+      ${cell("手机号", lead.phone)}
+      ${cell("设计师人数", lead.shejishi)}
+      ${cell("门店数", lead.mendian)}
+    </div>
+
+    <div class="block"><h3>客户需求</h3><p>${esc(lead.demand_summary || "—")}</p></div>
+    <div class="block"><h3>判断依据</h3><p>${esc(lead.intent_reason || "—")}</p></div>
+    <div class="block"><h3>建议下一步</h3><p>${esc(lead.next_action || "—")}</p></div>
+
+    <div class="actions">
+      <button class="primary" onclick="goReview('${esc(payload.id)}')">查看并修正</button>
+      <button onclick="copyJson()">复制 JSON</button>
+      <button onclick="downloadJson()">下载 JSON</button>
+      <button class="ghost" onclick="resetResult()">再分析一条</button>
+    </div>
+
+    <details class="json"><summary>查看完整 CRM JSON</summary>
+      <pre id="json-preview">${esc(JSON.stringify(lead, null, 2))}</pre>
+    </details>
+  </div>`;
+}
+
+async function goReview(id){
+  switchView("library");
+  try{
+    await loadList();
+    await openLead(id);
+  }catch(err){ toast(err.message, true); }
+}
+
+function copyJson(){
+  const lead = state.result && state.result.lead;
+  if(!lead) return;
+  const text = JSON.stringify(lead, null, 2);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>toast("已复制 JSON"), ()=>fallbackCopy(text));
+  } else { fallbackCopy(text); }
+}
+function fallbackCopy(text){
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); toast("已复制 JSON"); }
+  catch(e){ toast("复制失败，请手动选择", true); }
+  ta.remove();
+}
+function downloadJson(){
+  const lead = state.result && state.result.lead;
+  if(!lead) return;
+  const blob = new Blob([JSON.stringify(lead, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (lead.company_name || "lead") + ".json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
+async function loadRecent(){
+  try{
+    const d = await api("/api/leads?limit=5&with_dialogue=false");
+    const box = $("#recent-list");
+    if(!d.items || !d.items.length){ box.innerHTML = '<div class="empty" style="padding:18px 0">暂无记录</div>'; return; }
+    box.innerHTML = d.items.map(it=>`
+      <div class="r" onclick="goReview('${esc(it.id)}')">
+        <span class="badge ${it.intent_level}">${INTENT_LABEL[it.intent_level]||"-"}</span>
+        <span class="n">${esc(it.company_name || "未识别")}</span>
+        <span style="color:var(--muted)">${esc((it.call_time||"").slice(5,16))}</span>
+      </div>`).join("");
+  }catch(e){ /* 最近列表失败不阻塞主流程 */ }
+}
+
+/* ==================== 线索库 ==================== */
+function renderList(){
+  const box = $("#list");
+  if(!state.items.length){ box.innerHTML = '<div class="empty">没有符合条件的线索</div>'; return; }
+  box.innerHTML = state.items.map(it=>{
+    const conf = it.confidence_score||0;
+    const checked = state.selected.has(it.id) ? "checked" : "";
+    const active = state.current && state.current.id===it.id ? "active" : "";
+    const reason = it.need_human_review && it.first_reason ? `<div class="reason">${esc(it.first_reason)}</div>` : "";
+    return `<div class="item ${active}" data-id="${esc(it.id)}">
+      <input class="cb" type="checkbox" data-cb="${esc(it.id)}" ${checked}/>
+      <div class="row1">
+        <span class="co">${esc(it.company_name||"未识别")}</span>
+        <span class="badge ${it.intent_level}">${INTENT_LABEL[it.intent_level]||"-"}意向</span>
+        ${it.need_human_review?'<span class="badge review">待复核</span>':'<span class="badge ok">已处理</span>'}
+      </div>
+      <div class="meta">
+        <span>${esc(it.area||"地区未知")}</span><span>·</span><span>${esc(it.industry||"行业未知")}</span>
+        <span>·</span><span>${esc(STATUS_LABEL[it.review_status]||it.review_status)}</span>
+        <span>·</span><span>${esc((it.call_time||"").slice(5,16))}</span>
+      </div>
+      <div class="bar"><i style="width:${pct(conf)}%;background:${confColor(conf)}"></i></div>
+      ${reason}
+    </div>`;
+  }).join("");
+}
+
+async function loadList(){
+  const p = new URLSearchParams({
+    status: $("#f-status").value, level: $("#f-level").value,
+    query: $("#f-query").value.trim(),
+    need_review_only: $("#f-review").checked ? "true" : "false", limit: "300"
+  });
+  const d = await api("/api/leads?"+p.toString());
+  state.items = d.items||[];
+  state.selected.clear(); $("#sel-all").checked=false; updateBatchState();
+  renderList();
+}
+
+async function openLead(id){
+  state.current = await api("/api/leads/"+encodeURIComponent(id));
+  renderDetail(); renderList();
+}
+
+function dialogueHtml(text){
+  return String(text||"").split("\n").filter(Boolean).map(line=>{
+    const m = line.match(/^([^：:]{1,8})[：:]\s*(.*)$/);
+    if(!m) return `<div class="cust">${esc(line)}</div>`;
+    const isCust = /客户|顾客|用户/.test(m[1]);
+    return `<div class="${isCust?'cust':'sales'}"><span class="sp">${esc(m[1])}：</span>${esc(m[2])}</div>`;
+  }).join("");
+}
+
+function fieldRow(key, lead, fc, fev){
+  const v = lead[key];
+  const conf = fc[key];
+  const isEdit = EDITABLE.includes(key);
+  let input;
+  if(key==="intent_level"){
+    input = `<select data-field="${key}">
+      ${["high","medium","low"].map(l=>`<option value="${l}" ${v===l?"selected":""}>${INTENT_LABEL[l]}意向 (${l})</option>`).join("")}
+    </select>`;
+  } else if(key==="demand_summary" || key==="intent_reason" || key==="next_action"){
+    input = `<textarea rows="2" data-field="${key}">${esc(v)}</textarea>`;
+  } else if(isEdit){
+    input = `<input data-field="${key}" value="${esc(v)}" />`;
+  } else {
+    input = `<input value="${esc(v)}" disabled />`;
+  }
+  const ev = (fev[key]||[]).length
+    ? `<div class="field-ev">${(fev[key]||[]).slice(0,2).map(esc).join(" · ")}</div>` : "";
+  return `<div class="lbl">${esc(FIELD_LABELS[key]||key)}
+      <span class="conf" title="字段置信度 ${conf!=null?pct(conf)+"%":"-"}"><i style="width:${pct(conf)}%;background:${confColor(conf||0)}"></i></span>
+    </div><div>${input}${ev}</div>`;
+}
+
+function renderDetail(){
+  const box = $("#detail");
+  const rec = state.current;
+  if(!rec){ box.innerHTML = '<div class="empty">从左侧选择一条线索开始复核</div>'; return; }
+  const lead = rec.lead||{}, meta = rec.meta||{}, review = rec.review||{};
+  const cr = meta.company_resolution||{}, sc = meta.intent_scoring||{};
+  const fc = meta.field_confidence||{}, fev = meta.field_evidence||{};
+
+  const tabs = [["fields","结构化字段"],["evidence","抽取证据"],["company","抬头还原"],
+                ["intent","意向评分"],["review","复核与反馈"]];
+  const active = state.tab;
+
+  let body = "";
+  if(active==="fields"){
+    body = `<div class="grid">
+      ${["company_name","industry","area","contact_name","contact_title","phone",
+         "intent_level","intent_reason","demand_summary","mendian","shejishi",
+         "call_time","next_action"].map(k=>fieldRow(k,lead,fc,fev)).join("")}
+      <div class="lbl">置信度</div><div><input value="${pct(lead.confidence_score)}%" disabled/>
+        <div class="field-ev">复核阈值 ${pct(state.config?.review_confidence_threshold)}%；关键字段阈值 ${pct(state.config?.critical_field_threshold)}%；模型 ${esc(state.config?.models?.[state.config?.primary_provider]||"")}</div></div>
+    </div>`;
+  }
+  else if(active==="evidence"){
+    body = `<div class="section" style="margin-top:0;border:0;padding:0">
+        <h3>复核原因（触发人工介入的理由）</h3>
+        ${(meta.review_reasons||[]).length
+          ? `<ul class="reasons">${meta.review_reasons.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`
+          : '<div class="kv">无，置信度充分，已自动通过。</div>'}
+      </div>
+      <div class="section"><h3>软提示（不单独触发复核）</h3>
+        ${(meta.warnings||[]).length
+          ? `<ul class="reasons">${meta.warnings.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`
+          : '<div class="kv">无</div>'}
+      </div>
+      <div class="section"><h3>字段级证据</h3>
+        <div class="evlist">${
+          Object.entries(fev).map(([k,v])=>`【${FIELD_LABELS[k]||k}·${pct(fc[k])}%】\n  ` + v.map(esc).join("\n  ")).join("\n")
+        }</div>
+      </div>
+      <div class="section"><h3>原始通话记录</h3><div class="dlg">${dialogueHtml(rec.dialogue)}</div></div>`;
+  }
+  else if(active==="company"){
+    const cands = cr.candidates||[];
+    body = `<div class="kv">
+        <span>还原方式 <span class="pill">${esc(cr.match_type||"-")}</span></span>
+        <span>置信度 <b>${pct(cr.confidence)}%</b></span>
+        <span>口述原称 <span class="pill">${esc(cr.original_mention||"-")}</span></span>
+        <span>证据路径 <span class="pill">${esc((cr.paths_used||[]).join(" → ")||"无")}</span></span>
+      </div>
+      <div class="section"><h3>候选企业（点击「采用」即可写入企业抬头）</h3>
+        <div class="cands">${ cands.length ? cands.map(c=>`
+          <div class="cand">
+            <span class="nm">${esc(c.legal_name)}</span>
+            <span class="meta">${esc(c.path)} · ${pct(c.fused_score||c.path_confidence)}%${c.city?" · "+esc(c.city):""}</span>
+            <button class="sm" data-name="${esc(c.legal_name)}" onclick="useCandidate(this.dataset.name)">采用</button>
+          </div>`).join("") : '<div class="kv">无候选企业</div>' }</div>
+      </div>
+      <div class="section"><h3>冲突与告警</h3>
+        ${(cr.conflicts||[]).length
+          ? `<ul class="reasons">${cr.conflicts.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`
+          : '<div class="kv">无</div>'}
+      </div>
+      <div class="section"><h3>还原过程证据</h3>
+        <div class="evlist">${(cr.evidence||[]).map(esc).join("\n") || "无"}</div>
+        ${cr.reasoning?`<h3 style="margin-top:12px">模型推理说明</h3><div class="evlist">${esc(cr.reasoning)}</div>`:""}
+      </div>
+      <div class="section"><h3>原始通话记录</h3><div class="dlg">${dialogueHtml(rec.dialogue)}</div></div>`;
+  }
+  else if(active==="intent"){
+    const dims = sc.intent_dimensions||[];
+    body = `<div class="kv">
+        <span>判定等级 <span class="badge ${lead.intent_level}">${INTENT_LABEL[lead.intent_level]}意向</span></span>
+        <span>意向总分 <b>${sc.intent_score}/100</b></span>
+        <span>负向扣分 <b>-${sc.intent_penalty||0}</b></span>
+        <span>评分卡置信度 <b>${pct(sc.confidence)}%</b></span>
+      </div>
+      <div class="section"><h3>评分卡维度</h3>
+        ${dims.map(d=>`<div class="dim">
+            <span>${esc(d.label)}</span>
+            <span class="bar"><i style="width:${Math.round(d.score/d.max_score*100)}%"></i></span>
+            <span style="text-align:right;font-family:var(--mono)">${d.score}/${d.max_score}</span>
+          </div>`).join("")}
+        <div class="field-ev" style="margin-top:4px">阈值：高 ≥ 65，中 ≥ 36，低 &lt; 36；负向信号可触发等级压制。</div>
+      </div>
+      <div class="section"><h3>判断依据</h3><div class="evlist">${esc(lead.intent_reason)}</div></div>
+      <div class="section"><h3>各维度证据</h3>
+        <div class="evlist">${dims.map(d=>`【${esc(d.label)}】` + (d.evidence||[]).map(esc).join("；")).join("\n")}</div>
+      </div>
+      <div class="section"><h3>原始通话记录</h3><div class="dlg">${dialogueHtml(rec.dialogue)}</div></div>`;
+  }
+  else {
+    const hist = review.history||[];
+    const corr = review.corrected_fields||{};
+    body = `<div class="kv">
+        <span>当前状态 <span class="pill">${esc(STATUS_LABEL[review.status]||review.status)}</span></span>
+        <span>复核人 <span class="pill">${esc(review.reviewer||"-")}</span></span>
+        <span>复核时间 <span class="pill">${esc(review.reviewed_at||"-")}</span></span>
+      </div>
+      <div class="section"><h3>累计订正字段（反馈闭环的原料）</h3>
+        ${Object.keys(corr).length ? `<div class="evlist">${
+          Object.entries(corr).map(([k,v])=>`${FIELD_LABELS[k]||k}：${esc(v.from)} → ${esc(v.to)}`).join("\n")
+        }</div>` : '<div class="kv">暂无订正</div>'}
+      </div>
+      <div class="section"><h3>操作历史</h3>
+        ${hist.length ? `<div class="evlist">${hist.map(h=>
+            `[${esc(h.at)}] ${esc(h.reviewer)} · ${esc(STATUS_LABEL[h.action]||h.action)}` +
+            (Object.keys(h.changes||{}).length ? ` 改：${Object.entries(h.changes).map(([k,v])=>`${FIELD_LABELS[k]||k} ${esc(v.from)}→${esc(v.to)}`).join("，")}` : "") +
+            (h.note?`  备注：${esc(h.note)}`:""))
+          .join("\n")}</div>` : '<div class="kv">暂无操作记录</div>'}
+      </div>
+      <div class="section"><h3>线索归属</h3><div class="evlist">${esc(rec.dialogue)}</div></div>`;
+  }
+
+  box.innerHTML = `
+    <div class="head">
+      <div>
+        <h2>${esc(lead.company_name||"未识别")}</h2>
+        <div class="kv" style="margin-top:4px">
+          <span class="badge ${lead.intent_level}">${INTENT_LABEL[lead.intent_level]}意向</span>
+          <span>置信度 <b>${pct(lead.confidence_score)}%</b></span>
+          <span>·</span><span class="pill">${esc(rec.id)}</span>
+          <span>·</span><span>${esc(STATUS_LABEL[review.status]||review.status)}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost sm" onclick="doAction('reanalyze')">重新分析</button>
+        <button class="sm" onclick="doAction('reject')">驳回</button>
+        <button class="sm" onclick="doAction('approve')">通过</button>
+        <button class="primary sm" onclick="doAction('save')">保存修正</button>
+      </div>
+    </div>
+    <div class="tabs">${tabs.map(([k,l])=>`<div class="tab ${k===active?"active":""}" data-tab="${k}" onclick="selectTab('${k}')">${l}</div>`).join("")}</div>
+    <div class="tabbody">${body}</div>`;
+}
+
+function selectTab(key){ state.tab = key; renderDetail(); }
+
+function useCandidate(name){
+  const box = document.querySelector('#detail [data-field="company_name"]');
+  if(box){ box.value = name; toast("已填入候选企业，点击「保存修正」生效"); }
+  else {
+    state.tab = "fields"; renderDetail();
+    const el = document.querySelector('#detail [data-field="company_name"]');
+    if(el){ el.value = name; toast("已填入候选企业，点击「保存修正」生效"); }
+  }
+}
+
+function collectChanges(){
+  const out = {};
+  document.querySelectorAll("#detail [data-field]").forEach(el=>{
+    const k = el.dataset.field, v = el.value;
+    out[k] = (k==="mendian"||k==="shejishi") ? (v===""?null:Number(v)) : v;
+  });
+  return out;
+}
+
+async function reviewCurrent(kind){
+  if(!state.current) return;
+  // 存库状态与按钮动作名不同：approve -> approved，reject -> rejected
+  const status = {approve:"approved", reject:"rejected"}[kind] || null;
+  const body = { changes: kind==="approve" ? {} : collectChanges(), reviewer:"reviewer",
+                 note: kind==="reject" ? "人工驳回" : null,
+                 status };
+  const rec = await api("/api/leads/"+encodeURIComponent(state.current.id)+"/review",
+                        {method:"POST", body:JSON.stringify(body)});
+  state.current = rec; renderDetail();
+  await Promise.all([loadList(), loadStats()]);
+  toast(kind==="save" ? "已保存修正并记录反馈" : (kind==="approve" ? "已通过复核" : "已驳回"));
+}
+
+async function doAction(kind){
+  if(!state.current) return;
+  try{
+    if(kind==="save") await reviewCurrent("save");
+    else if(kind==="approve") await reviewCurrent("approve");
+    else if(kind==="reject") await reviewCurrent("reject");
+    else if(kind==="reanalyze"){
+      const rec = state.current;
+      const meta = rec.meta || {};
+      const hasAsr = !!meta.asr;
+      const dialogue = rec.dialogue || "";
+      if(!hasAsr && !dialogue.trim()){ toast("该线索没有可复用的通话内容", true); return; }
+      const accepted = await api("/api/analyze", {method:"POST", body:JSON.stringify({
+        dialogue, call_id: rec.id, call_time: rec.call_time, save: true
+      })});
+      await pollJob(accepted.job_id, {silent:true});
+      await openLead(rec.id); await loadStats(); await loadRecent();
+      toast("已重新分析并覆盖线索");
+    }
+  }catch(err){ toast(err.message, true); }
+}
+
+function updateBatchState(){
+  const n = state.selected.size;
+  $("#sel-count").textContent = "已选 "+n+" 条";
+  $("#btn-batch-approve").disabled = n===0;
+  $("#batch-level").disabled = n===0;
+  $("#batch-level").value = "";
+}
+
+async function batchReview(changes, status){
+  const ids = [...state.selected];
+  if(!ids.length) return;
+  const d = await api("/api/batch/review", {method:"POST",
+    body:JSON.stringify({ids, changes:changes||{}, reviewer:"reviewer", status:status||null})});
+  toast("批量更新 "+d.count+" 条" + (d.failed.length? "，失败 "+d.failed.length+" 条":""));
+  await Promise.all([loadList(), loadStats()]);
+  if(state.current && ids.includes(state.current.id)) await openLead(state.current.id);
+}
+
+/* ==================== 设置 ==================== */
+async function loadSettings(){
+  const [cfg, stats, kb] = await Promise.all([
+    api("/api/config"), api("/api/stats"), api("/api/kb/candidates")
+  ]);
+  state.config = cfg; state.stats = stats;
+  renderStats();
+
+  const rows = [
+    ["主模型", cfg.models[cfg.primary_provider] + "（" + cfg.primary_provider + "）"],
+    ["备用模型", cfg.models[cfg.fallback_provider] + "（" + cfg.fallback_provider + "）"],
+    ["语音转写", cfg.asr.model + "（" + cfg.asr.provider + "，说话人分离" + (cfg.asr.diarization?"开":"关") + "）"],
+    ["联网检索", cfg.web_search_enabled ? cfg.search_providers : "已关闭"],
+    ["复核阈值", Math.round(cfg.review_confidence_threshold*100) + "%"],
+    ["关键字段阈值", Math.round(cfg.critical_field_threshold*100) + "%"],
+    ["支持音频", cfg.asr.supported_ext.join(" ")]
+  ];
+  $("#set-config").innerHTML = rows.map(([k,v])=>
+    `<div class="kvrow"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+
+  const lv = stats.by_intent_level || {};
+  const cells = [
+    ["总线索", stats.total || 0],
+    ["待复核", stats.pending_review || 0],
+    ["高意向", lv.high || 0],
+    ["中意向", lv.medium || 0],
+    ["低意向", lv.low || 0],
+    ["平均置信度", pct(stats.avg_confidence) + "%"]
+  ];
+  $("#set-stats").innerHTML = cells.map(([k,v])=>
+    `<div class="stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("");
+
+  if(!kb.items || !kb.items.length){
+    $("#kb-list").innerHTML = '<div class="empty" style="padding:20px 0">暂无沉淀</div>';
+  } else {
+    $("#kb-list").innerHTML = `<table class="kbtable">
+      <thead><tr><th>口述别称</th><th>工商全称</th><th>审核人</th><th>次数</th><th>最近订正</th></tr></thead>
+      <tbody>${kb.items.map(it=>`<tr>
+        <td>${esc(it.alias_mention)}</td><td>${esc(it.legal_name)}</td>
+        <td>${esc(it.reviewer||"-")}</td><td>${esc(it.count)}</td><td>${esc(it.at||"-")}</td>
+      </tr>`).join("")}</tbody></table>`;
+  }
+}
+
+async function doExport(){
+  try{
+    const d = await api("/api/export?only_approved=true");
+    const blob = new Blob([JSON.stringify(d.rows, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "sql_leads.json"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    toast("已导出 "+d.count+" 条已审核线索");
+  }catch(err){ toast(err.message, true); }
+}
+
+/* ==================== 数据加载 ==================== */
+async function loadStats(){
+  state.stats = await api("/api/stats");
+  renderStats();
+}
+
+/* ==================== 事件绑定 ==================== */
+document.addEventListener("click", async (e)=>{
+  const item = e.target.closest(".item");
+  if(item && !e.target.dataset.cb){
+    try{ await openLead(item.dataset.id); }catch(err){ toast(err.message, true); }
+  }
+});
+
+document.addEventListener("change", (e)=>{
+  const t = e.target;
+  if(t.dataset.cb){
+    const id = t.dataset.cb;
+    t.checked ? state.selected.add(id) : state.selected.delete(id);
+    updateBatchState(); return;
+  }
+  if(t.id==="f-status" || t.id==="f-level" || t.id==="f-review"){
+    loadList().catch(err=>toast(err.message,true)); return;
+  }
+  if(t.id==="sel-all"){
+    state.selected.clear();
+    if(t.checked) state.items.forEach(i=>state.selected.add(i.id));
+    renderList(); updateBatchState(); return;
+  }
+  if(t.id==="batch-level" && t.value){
+    batchReview({intent_level:t.value}).catch(err=>toast(err.message,true)); return;
+  }
+  if(t.id==="audio-file"){
+    setFile(t.files && t.files[0]);
+  }
+});
+
+let queryTimer=null;
+$("#f-query").addEventListener("input", ()=>{ clearTimeout(queryTimer); queryTimer=setTimeout(()=>loadList().catch(()=>{}), 300); });
+$("#btn-refresh").addEventListener("click", ()=>Promise.all([loadList(), loadStats()]).catch(e=>toast(e.message,true)));
+$("#btn-batch-approve").addEventListener("click", ()=>batchReview({}, "approved").catch(e=>toast(e.message,true)));
+$("#btn-export").addEventListener("click", doExport);
+
+/* 拖拽上传 */
+const dz = $("#dropzone");
+dz.addEventListener("click", ()=> $("#audio-file").click());
+["dragenter","dragover"].forEach(evt=>dz.addEventListener(evt, (e)=>{
+  e.preventDefault(); e.stopPropagation(); dz.classList.add("drag");
+}));
+["dragleave","drop"].forEach(evt=>dz.addEventListener(evt, (e)=>{
+  e.preventDefault(); e.stopPropagation(); dz.classList.remove("drag");
+}));
+dz.addEventListener("drop", (e)=>{
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) setFile(f);
+});
+
+/* ==================== 初始化 ==================== */
+(async function init(){
+  try{
+    state.config = await api("/api/config");
+    await Promise.all([loadStats(), loadRecent()]);
+  }catch(err){
+    toast("初始化失败：" + err.message, true);
+  }
+})();
+</script>
+</body>
+</html>
